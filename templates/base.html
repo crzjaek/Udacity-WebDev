@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+
+<html>
+	<head>
+		<title>Jaekwang's Blog</title>
+		<style type="text/css">
+		body {
+			font-family: sans-serif; width: 800px; margin: 0 auto; padding: 10px;
+		}
+		error {
+			color: red;
+		}
+		label {
+			display: block; font-size: 20px;
+		}
+		input[type=text] {
+			width: 400px; font-size: 20px; padding: 2px;
+		}
+		textarea {
+			width: 400px; height: 200px; font-size: 17px; font-family: monospace;
+		}
+		input[type=submit] {
+			font-size: 24px;
+		}
+		hr {
+			margin: 0px auto;
+		}
+
+		.entry + .entry {
+			margin-top: 20px;
+		}
+		.entry-title {
+			font-weight: bold;
+			font-size: 20px;
+		}
+		.entry-body {
+			margin: 0;
+			margin-bottom: 0px
+			font-size: 14px;
+			word-wrap: break-word;
+			
+		}
+		</style>
+	</head>
+
+	
+	<body>
+		<h1 style="background-color: #ddd; color: #888; margin: 0 height: 50px">
+			Jaekwang's Blog
+		</h1>
+	
+		{% block content %}
+		{% endblock %}
+	</body>
+	
+</html>
