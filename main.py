@@ -137,8 +137,18 @@ form = """
 </html>
 """
 
+class User(db.Model):
+	username = db.StringProperty(required = True)
+	encrypted_password = db.StringProperty(required = True)
+	email = db.StringProperty(required = False)
+	
+	
+def encryptPassword(str):
+	#Implement encryption logic
+	return str
+	
 
-class MainPage(webapp2.RequestHandler):
+class SignupPage(webapp2.RequestHandler):
     def write_form(self, username="", error_username="", error_password="", error_verify="", email="", error_email=""):
 		self.response.out.write(form % {"username": username,
 								"error_username": error_username,
@@ -179,7 +189,11 @@ class MainPage(webapp2.RequestHandler):
 		if error:
 			self.write_form(input_username, error_username, error_password, error_verify, input_email, error_email)
 		else:
-			self.redirect('/welcome?username=' + input_username)
+			#If no error, create the account
+			a = User(username = input_username, encrypted_password = encrypted_password(input_password), email = input_email)
+			a.put()
+			#self.response.headers.add_header('Set-Cookie', "username=" +  input_username)
+			self.redirect('/welcome')
 
 class Welcome(webapp2.RequestHandler):
 	def get(self):
@@ -274,7 +288,7 @@ class ReviewPost(Handler):
 		entry = entry_obj.entry
 		self.render("entry.html", title=title, entry=entry)
 			
-app = webapp2.WSGIApplication([('/', MainPage),
+app = webapp2.WSGIApplication([('/signup', SignupPage),
                               ('/welcome', Welcome),
 							  ('/shopping', Shopping),
 							  ('/asciichan', AsciiChan),
