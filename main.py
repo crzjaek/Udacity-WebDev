@@ -14,6 +14,12 @@ USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
 PASSWORD_RE = re.compile(r"^.{3,20}$")
 EMAIL_RE = re.compile(r"^[\S]+@[\S]+\.[\S]+$")
 
+class User(db.Model):
+	username = db.StringProperty(required = True)
+	encrypted_password = db.StringProperty(required = True)
+	email = db.StringProperty(required = False)
+	
+
 def escape_html(s):
     return cgi.escape(s, quote = True)
 
@@ -35,6 +41,14 @@ def rot13(str):
 	
 def validate_username(username):
 	return USER_RE.match(username)
+
+	
+def isDuplicate_username(input_username):
+	users = db.GqlQuery("SELECT * FROM User")
+	for user in users:
+		if user.username == input_username:
+			return True
+	return False
 
 def validate_password(password):
 	return PASSWORD_RE.match(password)
@@ -137,11 +151,7 @@ form = """
 </html>
 """
 
-class User(db.Model):
-	username = db.StringProperty(required = True)
-	encrypted_password = db.StringProperty(required = True)
-	email = db.StringProperty(required = False)
-	
+
 	
 def encryptPassword(str):
 	#Implement encryption logic
@@ -175,6 +185,9 @@ class SignupPage(webapp2.RequestHandler):
 		if not validate_username(input_username):
 			error_username = "Invalid Username"
 			error = True
+		if isDuplicate_username(input_username):
+			error_username = "The username already exists"
+			error = True
 		if not validate_password(input_password):
 			error_password = "Invalid Password"
 			error = True
@@ -186,18 +199,20 @@ class SignupPage(webapp2.RequestHandler):
 				error_email = "Invalid Email"
 				error = True
 		
+		
 		if error:
 			self.write_form(input_username, error_username, error_password, error_verify, input_email, error_email)
-		else:
-			#If no error, create the account
-			a = User(username = input_username, encrypted_password = encrypted_password(input_password), email = input_email)
+		else: #If no error
+			a = User(username = input_username, encrypted_password = encryptPassword(input_password), email = input_email)
 			a.put()
-			#self.response.headers.add_header('Set-Cookie', "username=" +  input_username)
+			#self.response.headers.add_header('Set-Cookie', 'name=value; Path=/')'
+			cookie = str('user_id=%s' % input_username)
+			self.response.headers.add_header('Set-Cookie', cookie)
 			self.redirect('/welcome')
 
 class Welcome(webapp2.RequestHandler):
 	def get(self):
-		username = self.request.get("username")
+		username = self.request.cookies.get("user_id")
 		self.response.out.write("Welcome, " + username)
 
 class Handler(webapp2.RequestHandler):
