@@ -9,6 +9,9 @@ from google.appengine.ext import db
 template_dir = os.path.join(os.path.dirname(__file__), 'templates')
 jinja_env = jinja2.Environment(loader = jinja2.FileSystemLoader(template_dir),
 								autoescape = True)
+								
+import hashlib
+import hmac
 
 USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
 PASSWORD_RE = re.compile(r"^.{3,20}$")
@@ -152,12 +155,23 @@ form = """
 """
 
 
+SECRET = 'imsosecret'
+def hash_str(s):
+    return hmac.new(SECRET, s).hexdigest()
+
+def make_secure_val(s):
+    return "%s|%s" % (s, hash_str(s))
+
+def check_secure_val(h):
+    val = h.split('|')[0]
+    if h == make_secure_val(val):
+        return val
+	
 	
 def encryptPassword(str):
 	#Implement encryption logic
 	return str
 	
-
 class SignupPage(webapp2.RequestHandler):
     def write_form(self, username="", error_username="", error_password="", error_verify="", email="", error_email=""):
 		self.response.out.write(form % {"username": username,
@@ -206,14 +220,19 @@ class SignupPage(webapp2.RequestHandler):
 			a = User(username = input_username, encrypted_password = encryptPassword(input_password), email = input_email)
 			a.put()
 			#self.response.headers.add_header('Set-Cookie', 'name=value; Path=/')'
-			cookie = str('user_id=%s' % input_username)
-			self.response.headers.add_header('Set-Cookie', cookie)
+			cookie = make_secure_val(input_username)
+			self.response.headers.add_header('Set-Cookie', 'user_id=%s' % str(cookie))
 			self.redirect('/welcome')
 
 class Welcome(webapp2.RequestHandler):
 	def get(self):
-		username = self.request.cookies.get("user_id")
-		self.response.out.write("Welcome, " + username)
+		user_id_cookie = self.request.cookies.get("user_id")
+		if user_id_cookie:
+			username = check_secure_val(user_id_cookie)
+			if username:
+				self.response.out.write("Welcome, " + str(username))
+			else:
+				self.redirect('/signup')
 
 class Handler(webapp2.RequestHandler):
 	def write(self, *a, **kw):
