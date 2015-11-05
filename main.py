@@ -3,6 +3,8 @@ import cgi
 import re
 import os
 import jinja2
+import string
+import random
 
 from google.appengine.ext import db
 
@@ -74,6 +76,51 @@ rot13form = """
       <textarea name="text"
                 style="height: 100px; width: 400px;">%s</textarea>
       <br>
+      <input type="submit">
+    </form>
+  </body>
+
+</html>
+"""
+
+login_form = """
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <title>Unit 2 Rot 13</title>
+    <style type="text/css">
+      .label {text-align: right}
+      .error {color: red}
+    </style>
+
+  </head>
+
+  <body>
+    <h2>Login</h2>
+    <form method="post">
+      <table>
+        <tr>
+          <td class="label">
+            Username
+          </td>
+          <td>
+            <input type="text" name="username" value="%(username)s">
+          </td>
+        </tr>
+
+        <tr>
+          <td class="label">
+            Password
+          </td>
+          <td>
+            <input type="password" name="password" value="">
+          </td>
+          <td class="error">
+            %(error)s
+          </td>
+        </tr>
+	  </table>
       <input type="submit">
     </form>
   </body>
@@ -154,7 +201,7 @@ form = """
 </html>
 """
 
-
+#Cookie Hashing
 SECRET = 'imsosecret'
 def hash_str(s):
     return hmac.new(SECRET, s).hexdigest()
@@ -168,10 +215,26 @@ def check_secure_val(h):
         return val
 	
 	
-def encryptPassword(str):
-	#Implement encryption logic
-	return str
+#Password hashing	
+def make_salt():
+	return ''.join(random.choice(string.letters) for x in xrange(5))
 	
+def make_pw_hash(name, pw, salt = None):
+	if not salt:
+		salt = make_salt()
+	h = hashlib.sha256(name + pw + salt).hexdigest()
+	return '%s,%s' % (h, salt)
+	
+def valid_pw(name, pw, h):
+	salt = h.split(',')[1]
+	return h == make_pw_hash(name, pw, salt)
+	
+def get_encrypted_pw(input_username):
+	users = db.GqlQuery("SELECT * FROM User")
+	for user in users:
+		if user.username == input_username:
+			return user.encrypted_password
+
 class SignupPage(webapp2.RequestHandler):
     def write_form(self, username="", error_username="", error_password="", error_verify="", email="", error_email=""):
 		self.response.out.write(form % {"username": username,
@@ -217,12 +280,43 @@ class SignupPage(webapp2.RequestHandler):
 		if error:
 			self.write_form(input_username, error_username, error_password, error_verify, input_email, error_email)
 		else: #If no error
-			a = User(username = input_username, encrypted_password = encryptPassword(input_password), email = input_email)
+			a = User(username = input_username, encrypted_password = make_pw_hash(input_username, input_password), email = input_email)
 			a.put()
-			#self.response.headers.add_header('Set-Cookie', 'name=value; Path=/')'
+			
 			cookie = make_secure_val(input_username)
 			self.response.headers.add_header('Set-Cookie', 'user_id=%s' % str(cookie))
 			self.redirect('/welcome')
+
+
+class Login(webapp2.RequestHandler):
+	def write_form(self, username="", error=""):
+		self.response.out.write(login_form % {"username": username,
+								"error": error })
+
+	def get(self):
+		self.write_form()
+		#self.response.out.write(form)
+
+	def post(self):
+		input_username = self.request.get("username")
+		input_password = self.request.get("password")
+		error = False
+		error_message = ""
+		
+		if not isDuplicate_username(input_username):
+			error_message = "No Such user"
+			error = True
+		elif not valid_pw(input_username, input_password, get_encrypted_pw(input_username)):
+			error_message = "Invalid password"
+			error = True		
+		
+		if error:
+			self.write_form(input_username, error_message)
+		else: #If no error	
+			cookie = make_secure_val(input_username)
+			self.response.headers.add_header('Set-Cookie', 'user_id=%s' % str(cookie))
+			self.redirect('/welcome')
+
 
 class Welcome(webapp2.RequestHandler):
 	def get(self):
@@ -323,6 +417,7 @@ class ReviewPost(Handler):
 		self.render("entry.html", title=title, entry=entry)
 			
 app = webapp2.WSGIApplication([('/signup', SignupPage),
+							  ('/login', Login),
                               ('/welcome', Welcome),
 							  ('/shopping', Shopping),
 							  ('/asciichan', AsciiChan),
