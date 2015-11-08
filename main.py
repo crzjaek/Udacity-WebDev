@@ -317,6 +317,12 @@ class Login(webapp2.RequestHandler):
 			self.response.headers.add_header('Set-Cookie', 'user_id=%s' % str(cookie))
 			self.redirect('/welcome')
 
+class Logout(webapp2.RequestHandler):
+	def get(self):
+		self.response.headers.add_header('Set-Cookie', 'user_id=')
+		self.redirect('/signup')
+
+			
 
 class Welcome(webapp2.RequestHandler):
 	def get(self):
@@ -326,7 +332,7 @@ class Welcome(webapp2.RequestHandler):
 			if username:
 				self.response.out.write("Welcome, " + str(username))
 			else:
-				self.redirect('/signup')
+				self.redirect('/login')
 
 class Handler(webapp2.RequestHandler):
 	def write(self, *a, **kw):
@@ -418,6 +424,7 @@ class ReviewPost(Handler):
 			
 app = webapp2.WSGIApplication([('/signup', SignupPage),
 							  ('/login', Login),
+							  ('/logout', Logout),
                               ('/welcome', Welcome),
 							  ('/shopping', Shopping),
 							  ('/asciichan', AsciiChan),
